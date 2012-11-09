@@ -42,7 +42,7 @@ module TrueGrit
     ## Basically calls add on every file that's being tracked
     def restage
       raise 'Cannot restage on a bare repository' if @repo.working_path.nil?
-      each {|p| add(p.name)}
+      each { |p| add(p.name) }
     end
 
     ## Commit all staged files
@@ -63,17 +63,17 @@ module TrueGrit
         end unless parts.length == 0
 
         branch_name = File.dirname(e.name)
-        branch_name = branch_name == '.'? '': branch_name
+        branch_name = branch_name == '.' ? '' : branch_name
         branch = branches[branch_name]
         path = File.join(@repo.working_path, e.name)
         branches[branch_name] << TreeEntry.new(branch,
-                                               File.symlink?(path)? '120000': File.executable?(path)? '100755': '100644',
+                                               File.symlink?(path) ? '120000' : File.executable?(path) ? '100755' : '100644',
                                                File.basename(e.name),
                                                @repo.put_object(Blob.from_file(path)))
       end
 
       # Consolidate branches...
-      branches.sort{|b1,b2| b1[0].length <=> b2[0].length}.reverse.each do |dir,branch|
+      branches.sort { |b1, b2| b1[0].length <=> b2[0].length }.reverse.each do |dir, branch|
         next if dir == '' # Skip root
         parent_branch = File.dirname(dir)
         parent_branch = '' if parent_branch == '.'
@@ -185,7 +185,7 @@ module TrueGrit
       file.write("DIRC" + [2].pack('N'))
       file.write([count].pack('N'))
 
-      sorted = self.sort { |e,e1| e.name <=> e1.name }
+      sorted = self.sort { |e, e1| e.name <=> e1.name }
 
       sorted.each do |e|
         file.write([e.stat.ctime.to_i & 0xffffffff, e.stat.ctime.to_i & 0xffffffff00000000].pack('NN'))
@@ -239,7 +239,7 @@ module TrueGrit
       map
     end
 
-    def head_map(root = @repo.head_hash.nil?? []: @repo.head.tree, path = '')
+    def head_map(root = @repo.head_hash.nil? ? [] : @repo.head.tree, path = '')
       map = {}
       root.each { |e|
         full_path = File.join(path, e.name)

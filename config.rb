@@ -8,7 +8,7 @@ module TrueGrit
 
     alias :'super_set' :'[]='
 
-    def []=(key,value)
+    def []=(key, value)
       sup = super
       super_set(key, value)
       save
@@ -55,7 +55,7 @@ module TrueGrit
       f = File.open(loc, 'wb')
       keys = self.keys.sort!
       csec = nil
-      keys.each {|key|
+      keys.each { |key|
         section, lkey = key.split('.', 2)
         unless csec == section
           f.write "[#{section}]\n"

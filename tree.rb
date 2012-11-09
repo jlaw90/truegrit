@@ -12,7 +12,7 @@ module TrueGrit
 
     def checkout(path)
       Util.mkdir(path)
-      self.each {|e|
+      self.each { |e|
         data = e.content
         p = File.join(path, e.name)
         if data.is_a?(Tree)

@@ -30,17 +30,17 @@ module TrueGrit
       header = "#{type} #{data.length}\0"
       payload = header + data
       sha = Digest::SHA1.hexdigest(payload).downcase
-      return sha,payload
+      return sha, payload
     end
 
     def self.raw(object)
       sha, payload = get_data(object)
       comp = Zlib::Deflate.deflate(payload)
-      return sha,comp
+      return sha, comp
     end
 
     def self.store(base, object)
-      sha,comp = raw(object)
+      sha, comp = raw(object)
 
       dir = File.join(base, 'objects', sha[0..1])
       Dir.mkdir(dir) unless Dir.exists?(dir)

@@ -57,7 +57,7 @@ module TrueGrit
           next
         end
         if header
-          type,data = line.split(' ', 2)
+          type, data = line.split(' ', 2)
           case type
             when 'tree'
               tree = data
