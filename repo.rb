@@ -1,6 +1,6 @@
 require 'fileutils'
 
-require_relative 'object_store'
+require_relative 'store'
 require_relative 'stage'
 require_relative 'config'
 require_relative 'util'
@@ -8,34 +8,35 @@ require_relative 'commit'
 
 module TrueGrit
   class Repo
-    attr_reader :path, :working_path, :config, :stage
+    attr_reader :path, :working_path, :store, :stage, :config
 
     def initialize(repo_path, working_path=nil)
       @path = File.absolute_path(repo_path)
       @working_path = File.absolute_path(working_path)
+      @store = Store.new(self)
       @stage = Stage.new(self)
       @config = Config.new(self)
     end
 
-    def get_object(hash)
-      return nil if hash.nil?
-      ObjectStore.retrieve(@path, hash, self)
+    def retrieve_object(hash)
+      @store.retrieve(hash, self)
     end
 
-    def put_object(object)
-      ObjectStore.store(@path, object)
+    def store_object(object)
+      @store.store(object)
     end
 
-    def contains_object?(hash)
-      ObjectStore.contains?(@path, hash)
+    def includes_object?(hash)
+      @store.include?(@path, hash)
     end
 
     # Todo: name properly for refs, tags, etc.
     def head(path=nil)
-      get_object(head_hash(path))
+      retrieve_object(head_hash(path))
     end
 
     def head_hash(path=nil)
+      # Todo: packed refs!
       path = File.join(@path, path.nil? ? 'HEAD' : "refs/heads/#{path}")
       return nil unless File.exists?(path)
       data = File.binread(path).chomp
@@ -46,12 +47,12 @@ module TrueGrit
         return nil unless File.exists?(refpath)
         data = File.binread(refpath).chomp
       end
-      data
+      ShaHash.from_s(data)
     end
 
     def set_head(commit, path=nil)
       path = File.join(@path, path.nil? ? 'HEAD' : "refs/heads/#{path}")
-      value = commit.is_a?(Commit) ? put_object(commit) : commit.to_s
+      value = commit.is_a?(Commit) ? store_object(commit) : commit.to_s
       data = File.binread(path).chomp
 
       # Check ref
@@ -99,8 +100,6 @@ module TrueGrit
       f.write("ref: refs/heads/master\n")
       f.close
 
-      # Todo: config
-
       f = File.open(File.join(path, 'description'), 'wb')
       f.write('No description')
       f.close
@@ -119,15 +118,9 @@ module TrueGrit
       Util.mkdir(File.join(path, 'refs', 'tags'))
 
       repo = Repo.new(path, working_path)
+      # Todo: more standard config options
       repo.config['core.bare'] = bare
       repo
-    end
-
-    private
-    def get_head(path)
-
-
-      get_object(data)
     end
   end
 end

@@ -1,5 +1,6 @@
 require_relative 'author'
-require_relative 'object_store'
+require_relative 'store'
+require_relative 'util'
 
 module TrueGrit
   class Commit
@@ -17,26 +18,31 @@ module TrueGrit
     end
 
     def tree
-      @repo.get_object(@tree)
+      @repo.retrieve_object(@tree)
     end
 
     def parent
-      @repo.get_object(@parent) unless @parent.nil?
+      @repo.retrieve_object(@parent) unless @parent.nil?
+    end
+
+    def to_s
+      "commit {tree=#{@tree},parent=#{@parent}}"
     end
 
     def data
       res = "tree #@tree\n"
       res += "parent #@parent\n" unless @parent.nil?
-      res += "author #{@author.data} #{Commit.time_str(@author_time)}\n"
-      res += "committer #{@committer.data} #{Commit.time_str(@commit_time)}\n"
+      res += "author #{@author.data} #{Util.time_format(@author_time)}\n"
+      res += "committer #{@committer.data} #{Util.time_format(@commit_time)}\n"
       res += "\n" + message
       Util.crlf(res)
     end
 
-    def set_head(name)
-      file = File.new(File.join(@repo.path, 'refs', 'heads', name), 'wb')
-      sha = @repo.put_object(self)
-      file.write(Util.crlf("#{sha}\n"))
+    def add_ref(name, type=:head)
+      # Todo: if it's a tag we may need to store an object...
+      file = File.new(File.join(@repo.path, 'refs', "#{type.to_s}s", name), 'wb')
+      sha = @repo.store_object(self)
+      file.write("#{sha}\n")
       file.flush
       file.close
       sha
@@ -60,9 +66,9 @@ module TrueGrit
           type, data = line.split(' ', 2)
           case type
             when 'tree'
-              tree = data
+              tree = ShaHash.from_s(data)
             when 'parent'
-              parent = data
+              parent = ShaHash.from_s(data)
             when 'author'
               author, author_time = parse_author_line(data)
             when 'committer'
@@ -82,15 +88,7 @@ module TrueGrit
     private
     def self.parse_author_line(data)
       parts = data.split ' '
-      return Author.read(parts[0..-3].join(' ')), parse_time(parts[-2], parts[-1])
-    end
-
-    def self.parse_time(secs, tz)
-      t = Time.at(secs.to_i) + (60 * 60 * tz.to_i)
-    end
-
-    def self.time_str(time)
-      time.strftime("%s %z")
+      return Author.read(parts[0..-3].join(' ')), Util.time_parse(parts[-2], parts[-1])
     end
   end
 end

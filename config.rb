@@ -34,7 +34,6 @@ module TrueGrit
           key = match[1]
           value = match[2]
           realkey = section.nil? ? key : "#{section}.#{key}"
-
           if has_key?(realkey)
             old = self[realkey]
             if old.kind_of?(Array)

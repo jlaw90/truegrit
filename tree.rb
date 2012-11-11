@@ -1,5 +1,5 @@
 require 'stringio'
-require_relative 'object_store'
+require_relative 'store'
 require_relative 'util'
 
 module TrueGrit
@@ -23,7 +23,7 @@ module TrueGrit
           f.flush
           f.close
         else
-          raise 'Unknown entry in tree: ' + data.class
+          raise "Unknown entry in tree: #{data}"
         end
       }
     end
@@ -34,19 +34,31 @@ module TrueGrit
       until stream.eof?
         mode = stream.gets(' ').chop
         name = stream.gets(?\0).chop
-        sha = stream.read(20).chars.to_a.map { |c| sprintf("%02x", c.ord) }.join
+        sha = ShaHash.new(stream.read(20))
         tree << TreeEntry.new(tree, mode, name, sha)
       end
       tree
     end
 
     def data
+      sort! {|e1,e2| e1.name <=> e2.name }
       str = ''
       self.each do |e|
         str += "#{e.mode} #{e.name}\0"
-        str += [e.sha].pack('H*')
+        str += e.sha.sha
       end
       str
+    end
+
+    def map(path=nil)
+      res = {}
+      path = '' if path.nil?
+      self.each do |e|
+        fpath = File.join(path, e.name)[1..-1]
+        res[fpath] = e unless e.mode == '40000'
+        res[fpath] = [e.content.map(path), e] if e.mode == '40000'
+      end
+      res
     end
   end
 
@@ -61,11 +73,11 @@ module TrueGrit
     end
 
     def content
-      ObjectStore.retrieve(@tree.repo.path, @sha, @tree.repo)
+      @tree.repo.retrieve_object(@sha)
     end
 
     def to_s
-      @name
+      "#{@name}"
     end
   end
 end
