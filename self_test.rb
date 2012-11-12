@@ -1,20 +1,23 @@
 require_relative 'repo'
 require_relative 'author'
 
+# I have a backup of my current git folder incase things fuck up
+# I'd suggest you do the same if you're playing with this library :P
+if File.exists?('.git.bak')
+  require 'fileutils'
+  FileUtils.rm_rf('.git')
+  Dir.mkdir('.git')
+  FileUtils.cp_r('.git.bak/.', '.git')
+end
+
 repo = TrueGrit::Repo.new('.git', '.')
 
-puts "Status output:"
-pp repo.stage.status
-
-repo.add('test') # Add the symlink to test committing behaviour
-head = repo.head # Our HEAD
-map = head.tree.map # A shitty) map of the file system at this point
 repo.stage.restage
 commit = repo.commit(TrueGrit::Author.new('James Lawrence', 'james@kukee.co.uk'),
-                     'Lots and lots of changes including partial packfile report!
-This was restaged and committed by truegrit
-have a look in self_test.rb :D')
+                     'Even more packfile support (we support rebuilding deltas!) and optimisation
+Tags and submodules are the main things I want to add next
+After that I\'m not sure I\'ll need anything else as this should do what I need it to
+Again: This was self-staged and committed by truegrit (see self_test.rb)
+(Was pushed manually... for now ;))')
 
-head = repo.head
-tree = head.tree
-parent = head.pare
+repo.head.checkout('checkout_test')

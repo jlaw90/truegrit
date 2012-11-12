@@ -21,22 +21,31 @@ module TrueGrit
       end
     end
 
-    def retrieve(hash, parent)
-      f = absolute_path(hash)
-      return Store::create_object(File.binread(f), parent) if File.exists?(f)
-      @packs.each { |p| return p[hash].retrieve if p.include?(hash) }
-      raise "#{hash} not found in file or pack files"
+    def retrieve(sha, parent)
+      return Store::create_object(retrieve_raw(sha), parent, sha)
     end
 
-    def include?(base, hash)
-      return true if File.exists?(absolute_path(hash))
-      @packs.each { |p| return true if p.include?(hash) }
+    def retrieve_raw(sha)
+      f = absolute_path(sha)
+      return Zlib::Inflate.inflate(File.binread(f)) if File.exists?(f)
+      @packs.each do |p|
+        if p.include?(sha)
+          p.unpack(sha)
+          return retrieve_raw(sha) # Now it's unpacked we should have it!
+        end
+      end
+      raise "#{sha} not found in file or pack files"
+    end
+
+    def include?(base, sha)
+      return true if File.exists?(absolute_path(sha))
+      @packs.each { |p| return true if p.include?(sha) }
       false
     end
 
-    def absolute_path(hash)
-      hash = hash.to_s
-      File.join(@repo.path, 'objects', hash[0..1], hash[2..-1])
+    def absolute_path(sha)
+      s = sha.to_s
+      File.join(@repo.path, 'objects', s[0..1], s[2..-1])
     end
 
     def self.hash(object,return_payload=false)
@@ -47,18 +56,21 @@ module TrueGrit
       data = Util.crlf(object.data) # Fix-up newlines
       header = "#{type} #{data.length}\0"
       payload = header + data
-      hash = ShaHash.calculate(payload)
-      return return_payload ? [hash, payload]: hash
+      sha = ShaHash.calculate(payload)
+      return return_payload ? [sha, payload]: sha
     end
 
     def store(object)
-      sha, comp = Store::payload(object)
+      sha,data = Store::hash(object, true)
+      store_raw(sha, data)
+    end
+
+    def store_raw(sha, data)
       path = absolute_path(sha)
-      puts "#{sha} from #{object}"
       return sha if File.exists?(path) # Don't re-write, waste of time
       Util.mkdir(File.dirname(path))
       file = File.open(path, 'wb')
-      file.write(comp)
+      file.write(Zlib::Deflate.deflate(data))
       file.flush
       file.close
       File.chmod(0644, path)# Make read-only (git does this)
@@ -70,24 +82,23 @@ module TrueGrit
       Dir.foreach(File.join(@repo.working_path, 'objects')) do |pa|
         next unless pa.length == 2
         Dir.foreach(File.join(@repo.working_path, 'objects', pa)) do |pb|
-          hash = ShaHash.from_s("#{pa}#{pb}")
-          map[hash] = retrieve(hash)
+          sha = ShaHash.from_s("#{pa}#{pb}")
+          map[sha] = retrieve(sha)
         end
       end
       map
     end
 
     private
-    def self.create_object(data, parent)
-      data = Zlib::Inflate.inflate(data)
-      header, data = data.split(?\0, 2)
+    def self.create_object(src, parent,sha=nil)
+      header, data = src.split(?\0, 2)
       type, size = header.split(' ', 2)
       size = size.to_i
       raise 'Invalid header in object (unknown type)' unless %w(commit blob tree).include?(type)
       raise 'Invalid header in object (size mismatch)' if data.length != size
       case type
         when 'commit'
-          return Commit.read(data, parent)
+          return Commit.read(data, parent, sha)
         when 'tree'
           return Tree.read(data, parent)
         when 'blob'
@@ -95,12 +106,6 @@ module TrueGrit
         else
           raise 'Unhandled object type: ' + type
       end
-    end
-
-    def self.payload(object)
-      sha, payload = hash(object,true)
-      comp = Zlib::Deflate.deflate(payload)
-      return sha, comp
     end
   end
 end

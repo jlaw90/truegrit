@@ -18,16 +18,16 @@ module TrueGrit
       @config = Config.new(self)
     end
 
-    def retrieve_object(hash)
-      @store.retrieve(hash, self)
+    def retrieve_object(sha)
+      @store.retrieve(sha, self)
     end
 
     def store_object(object)
       @store.store(object)
     end
 
-    def includes_object?(hash)
-      @store.include?(@path, hash)
+    def includes_object?(sha)
+      @store.include?(@path, sha)
     end
 
     # Todo: name properly for refs, tags, etc.

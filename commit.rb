@@ -4,9 +4,9 @@ require_relative 'util'
 
 module TrueGrit
   class Commit
-    attr_reader :repo, :author, :committer, :author_time, :commit_time, :message
+    attr_reader :repo, :author, :committer, :author_time, :commit_time, :message, :sha
 
-    def initialize(repo, tree, parent, author, committer, author_time, commit_time, message)
+    def initialize(repo, tree, parent, author, committer, author_time, commit_time, message, sha=nil)
       @repo = repo
       @tree = tree
       @parent = parent
@@ -15,6 +15,7 @@ module TrueGrit
       @author_time = author_time
       @commit_time = commit_time
       @message = message
+      @sha = sha
     end
 
     def tree
@@ -26,7 +27,7 @@ module TrueGrit
     end
 
     def to_s
-      "commit {tree=#{@tree},parent=#{@parent}}"
+      "commit[#{sha}] {tree=#{@tree},parent=#{@parent}}"
     end
 
     def data
@@ -52,7 +53,7 @@ module TrueGrit
       tree.checkout(path)
     end
 
-    def self.read(data, repo)
+    def self.read(data, repo, sha)
       header = true
       tree, parent, author, committer, author_time, commit_time = nil
       message = ''
@@ -82,7 +83,7 @@ module TrueGrit
       end
       message.chop!
 
-      Commit.new(repo, tree, parent, author, committer, author_time, commit_time, message)
+      Commit.new(repo, tree, parent, author, committer, author_time, commit_time, message, sha)
     end
 
     private

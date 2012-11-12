@@ -18,11 +18,7 @@ module TrueGrit
       raise 'Cannot add files to a bare repository...' if @repo.working_path.nil?
       p = File.join(@repo.working_path, file)
       raise 'Cannot add non-existant file' unless File.exists?(p)
-      hash = @repo.store_object(Blob.from_file(p))
-      stat = File.stat(p)
-      se = StageEntry.new(file, hash,
-                          StageStat.new(stat.ctime, stat.mtime, stat.dev, stat.ino, stat.mode, stat.uid, stat.gid, stat.size),
-                          0)
+      se = StageEntry.from_file(@repo, file)
       staged = self.select { |e| e.name == file }.first
       self[self.index(staged)] = se unless staged.nil?
       self << se if staged.nil?
@@ -72,7 +68,7 @@ module TrueGrit
         branches[branch_name] << TreeEntry.new(branch,
                                                e.stat.symlink? ? '120000' : e.stat.executable? ? '100755' : '100644',
                                                File.basename(e.name),
-                                               e.hash)
+                                               e.sha)
       end
 
       # Consolidate branches...
@@ -84,8 +80,8 @@ module TrueGrit
         parent << TreeEntry.new(parent, '40000', File.basename(dir), @repo.store_object(branch))
       end
 
+      parent = @repo.head.sha
       treehash = @repo.store_object(tree)
-      parent = @repo.head_hash
 
       @repo.set_head(Commit.new(@repo, treehash, parent, author, committer, Time.now, Time.now, message))
     end
@@ -112,11 +108,11 @@ module TrueGrit
       wmap.keys.each do |w|
         se = wmap[w]
         if hmap.has_key?(w)
-          results[:unmodified] << se if hmap[w] == se.hash
+          results[:unmodified] << se if hmap[w] == se.sha
         end
 
         if smap.has_key?(w)
-          results[:staged] << se if smap[w].hash != hmap[w] and !results[:unmodified].include?(se)
+          results[:staged] << se if smap[w].sha != hmap[w] and !results[:unmodified].include?(se)
           results[:modified] << se if smap[w].modified?(se)
         else
           results[:untracked] << se
@@ -169,7 +165,7 @@ module TrueGrit
         uid = f.read(4).unpack('N')[0]
         gid = f.read(4).unpack('N')[0]
         size = f.read(4).unpack('N')[0]
-        hash = ShaHash.new(f.read(20))
+        sha = ShaHash.new(f.read(20))
         flags = f.read(2).unpack('n')[0]
         name_len = flags & 0xfff
         flags &= 0xf000 # Remove name length from flags...
@@ -180,12 +176,12 @@ module TrueGrit
         size = 55 + name_len
         pad = (8 - (size % 8)) % 8
         f.read(pad)
-        unless @repo.includes_object?(hash)
+        unless @repo.includes_object?(sha)
           puts 'An item in the staging area appears to not exist in the object store, removing,,,'
           next
         end
 
-        self << StageEntry.new(name, hash, StageStat.new(ctime, mtime, dev, inode, mode, uid, gid, size), flags)
+        self << StageEntry.new(name, sha, StageStat.new(ctime, mtime, dev, inode, mode, uid, gid, size), flags)
       end
 
       # Todo: process & store!
@@ -217,7 +213,7 @@ module TrueGrit
         file.write([e.stat.uid].pack('N'))
         file.write([e.stat.gid].pack('N'))
         file.write([e.stat.size].pack('N'))
-        file.write(e.hash.sha)
+        file.write(e.sha.sha)
 
         flags = e.flags & 0xf000
         flags |= e.name.length & 0xfff
@@ -271,27 +267,25 @@ module TrueGrit
   end
 
   class StageEntry
-    attr_reader :stat, :hash, :flags, :name
+    attr_reader :stat, :sha, :flags, :name
 
-    def initialize(name, hash, stat, flags)
+    def initialize(name, sha, stat, flags)
       @stat = stat
-      @hash = hash
+      @sha = sha
       @flags = flags
       @name = name
     end
 
     def modified?(other)
       # Todo: Do we need hash comparison?
-      (@stat.mtime.to_i & 0xffffffff) != (other.stat.mtime.to_i & 0xffffffff) or @hash != other.hash
+      (@stat.mtime.to_i & 0xffffffff) != (other.stat.mtime.to_i & 0xffffffff) or @sha != other.sha
     end
 
     def self.from_file(repo, path)
       path = File.absolute_path(path)
-      blob = Blob.from_file(path)
-      # Todo: sha calculation is time consuming...
-      sha = Store.hash(blob)
+      sha = repo.store_object(Blob.from_file(path))
       relname = path[repo.working_path.length+1..-1]
-      stat = File.stat(path)
+      stat = File.lstat(path)
       StageEntry.new(relname, sha, stat, 0)
     end
 
@@ -316,7 +310,9 @@ module TrueGrit
     end
 
     def symlink?
-      ((@mode & 0170000) == 0120000)
+      flag = @mode & 0x170000
+      symlink = flag == 0120000
+      return symlink
     end
 
     def executable?

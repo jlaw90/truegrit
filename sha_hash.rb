@@ -4,6 +4,9 @@ class ShaHash
   attr_reader :sha, :hash
 
   def initialize(sha)
+    if sha.nil? or sha.length != 20
+      raise 'Invalid hash!'
+    end
     @sha = sha
     @hash = sha.hash
   end
