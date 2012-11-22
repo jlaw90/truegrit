@@ -24,7 +24,7 @@ module TrueGrit
             puts 'Checking out a symlink on windows, creating as a textfile...'
           end
         elsif e.mode == '160000'
-          puts 'Gitlinks not yet supported! (submodules)'
+          raise 'Gitlinks not yet supported! (submodules)'
           next
         end
         data = e.content
