@@ -6,10 +6,10 @@ module TrueGrit
   class Commit
     attr_reader :repo, :author, :committer, :author_time, :commit_time, :message, :sha
 
-    def initialize(repo, tree, parent, author, committer, author_time, commit_time, message, sha=nil)
+    def initialize(repo, tree, parents, author, committer, author_time, commit_time, message, sha=nil)
       @repo = repo
       @tree = tree
-      @parent = parent
+      @parents = parents
       @author = author
       @committer = committer
       @author_time = author_time
@@ -22,17 +22,19 @@ module TrueGrit
       @repo.retrieve_object(@tree)
     end
 
-    def parent
-      @repo.retrieve_object(@parent) unless @parent.nil?
+    def parents
+      @parents.map{|p| @repo.retrieve_object(p)}
     end
 
     def to_s
-      "commit[#{sha}] {tree=#{@tree},parent=#{@parent}}"
+      "commit[#{sha}] {tree=#{@tree},parents=#{@parents}}"
     end
 
     def data
       res = "tree #@tree\n"
-      res += "parent #@parent\n" unless @parent.nil?
+      @parents.each do |p|
+        res += "parent #{p}\n"
+      end
       res += "author #{@author.data} #{Util.time_format(@author_time)}\n"
       res += "committer #{@committer.data} #{Util.time_format(@commit_time)}\n"
       res += "\n" + message
@@ -55,7 +57,8 @@ module TrueGrit
 
     def self.read(data, repo, sha)
       header = true
-      tree, parent, author, committer, author_time, commit_time = nil
+      tree= author= committer= author_time= commit_time = nil
+      parents = []
       message = ''
       data.each_line do |line|
         line.chomp!
@@ -69,7 +72,7 @@ module TrueGrit
             when 'tree'
               tree = ShaHash.from_s(data)
             when 'parent'
-              parent = ShaHash.from_s(data)
+              parents << ShaHash.from_s(data)
             when 'author'
               author, author_time = parse_author_line(data)
             when 'committer'
@@ -83,7 +86,7 @@ module TrueGrit
       end
       message.chop!
 
-      Commit.new(repo, tree, parent, author, committer, author_time, commit_time, message, sha)
+      Commit.new(repo, tree, parents, author, committer, author_time, commit_time, message, sha)
     end
 
     private
