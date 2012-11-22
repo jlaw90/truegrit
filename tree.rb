@@ -23,8 +23,8 @@ module TrueGrit
             # Just skip the next statement
             puts 'Checking out a symlink on windows, creating as a textfile...'
           end
-        elsif e.mode == '160000'
-          raise 'Gitlinks not yet supported! (submodules)'
+        elsif e.mode == '160000' # Gitlinks are created as directories and handled by .gitmodules
+          Dir.mkdir(p)
           next
         end
         data = e.content
@@ -68,8 +68,7 @@ module TrueGrit
       path = '' if path.nil?
       self.each do |e|
         fpath = File.join(path, e.name)[1..-1]
-        res[fpath] = TreeMap.from_entry(e) unless e.mode == '40000'
-        res[fpath] = e.content.map(path) if e.mode == '40000'
+        res[fpath] = (e.mode == '40000')? e.content.map(path): TreeMap.from_entry(e)
       end
       res
     end
@@ -99,7 +98,7 @@ module TrueGrit
     end
 
     def content
-      @tree.repo.retrieve_object(@sha)
+      (@mode == '160000')? @sha: @tree.repo.retrieve_object(@sha)
     end
 
     def to_s
