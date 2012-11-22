@@ -12,7 +12,7 @@ module TrueGrit
 
     def initialize(repo_path, working_path=nil)
       @path = File.absolute_path(repo_path)
-      @working_path = working_path.nil? nil: File.absolute_path(working_path)
+      @working_path = working_path.nil?? nil: File.absolute_path(working_path)
       @store = Store.new(self)
       @stage = Stage.new(self)
       @config = Config.new(self)
