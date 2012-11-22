@@ -37,7 +37,7 @@ module TrueGrit
       raise "#{sha} not found in file or pack files"
     end
 
-    def include?(base, sha)
+    def include?(sha)
       return true if File.exists?(absolute_path(sha))
       @packs.each { |p| return true if p.include?(sha) }
       false

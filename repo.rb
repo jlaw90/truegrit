@@ -26,8 +26,8 @@ module TrueGrit
       @store.store(object)
     end
 
-    def includes_object?(sha)
-      @store.include?(@path, sha)
+    def has_object?(sha)
+      @store.include?(sha)
     end
 
     # Todo: name properly for refs, tags, etc.
