@@ -80,22 +80,10 @@ module TrueGrit
       data = "#{type.to_s} #{data.size}\0#{data}" unless type == DeltaReferenceType or type == DeltaOffsetType
 
       # Deserialise...
-      return case type
-               when CommitType then
-                 @repo.store.store_raw(sha, data)
-               when TreeType then
-                 @repo.store.store_raw(sha, data)
-               when BlobType then
-                 @repo.store.store_raw(sha, data)
-               when DeltaReferenceType
-                 base_data = @repo.store.retrieve_raw(delta_sha)
-                 return @repo.store.store_raw(sha, Pack::apply_delta(base_data, data))
-               when DeltaOffsetType
-                 base_data = @repo.store.retrieve_raw(delta_sha)
-                 return @repo.store.store_raw(sha, Pack::apply_delta(base_data, data))
-               else
-                 raise "Unhandled deserialise for #{type}"
-             end
+      # Todo: This won't work for read-only directories, hrm....
+      return (type == DeltaReferenceType or type == DeltaOffsetType)?
+          Pack::apply_delta(@repo.store.retrieve_raw(delta_sha), data):
+          data
     end
 
     private

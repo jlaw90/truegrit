@@ -10,7 +10,7 @@ require_relative 'author'
 #  FileUtils.cp_r('.git.bak/.', '.git')
 #end
 
-repo = TrueGrit::Repo.new('.')
+repo = TrueGrit::Repo.new('/opt/railstrack')
 
 head = repo.head
 

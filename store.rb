@@ -32,7 +32,7 @@ module TrueGrit
       return (@cache[sha] = Zlib::Inflate.inflate(File.binread(f))) if File.exists?(f)
       @packs.each do |p|
         if p.include?(sha)
-          p.unpack(sha)
+          @cache[sha] = p.unpack(sha)
           return retrieve_raw(sha) # Now it's unpacked we should have it!
         end
       end
