@@ -29,7 +29,7 @@ module TrueGrit
     def retrieve_raw(sha)
       f = absolute_path(sha)
       return @cache[sha] if @cache.include?(sha)
-      return (@cache = Zlib::Inflate.inflate(File.binread(f))) if File.exists?(f)
+      return (@cache[sha] = Zlib::Inflate.inflate(File.binread(f))) if File.exists?(f)
       @packs.each do |p|
         if p.include?(sha)
           p.unpack(sha)

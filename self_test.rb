@@ -16,6 +16,9 @@ head = repo.head
 
 commits = repo.commits
 
+branches = repo.get_branches
+tags = repo.get_tags
+
 tree = head.tree
 
 pp tree

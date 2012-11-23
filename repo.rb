@@ -70,6 +70,7 @@ module TrueGrit
       branches = {}
       dir = File.join(@path, 'refs', 'heads')
       Dir.foreach(dir) do |f|
+        next if f == '.' or f == '..'
         branches[f] = ShaHash.from_s(File.binread(File.join(dir, f)).chomp)
       end
       # Packed refs
@@ -80,7 +81,7 @@ module TrueGrit
         f.each do |line|
           next if line.length == 0 or line[0] == '#' or line[0] == '^'
           match = line.match /^([0-9a-fA-F]{40}) (.+)$/
-          path = math[2].downcase
+          path = match[2].downcase
           next unless path[0..10] == 'refs/heads/'
           branches[path[11..-1]] = ShaHash.from_s(match[1])
         end
@@ -94,6 +95,7 @@ module TrueGrit
       tags = {}
       dir = File.join(@path, 'refs', 'tags')
       Dir.foreach(dir) do |f|
+        next if f == '.' or f == '..'
         tags[f] = ShaHash.from_s(File.binread(File.join(dir, f)).chomp)
       end
       # Packed refs
@@ -104,7 +106,7 @@ module TrueGrit
         f.each do |line|
           next if line.length == 0 or line[0] == '#' or line[0] == '^'
           match = line.match /^([0-9a-fA-F]{40}) (.+)$/
-          path = math[2].downcase
+          path = match[2].downcase
           next unless path[0..9] == 'refs/tags/'
           tags[path[10..-1]] = ShaHash.from_s(match[1])
         end
