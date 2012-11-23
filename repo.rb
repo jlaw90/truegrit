@@ -45,10 +45,73 @@ module TrueGrit
       return nil if path.nil?
       raise "Invalid ref: #{path}" unless path[0..4] == 'refs/'
       abs_path = File.join(@path, path)
-      return nil unless File.exists?(abs_path)
-      # Todo: packed refs
-      hash_str = File.binread(abs_path).chomp
+      if File.exists?(abs_path)
+        hash_str = File.binread(abs_path).chomp
+      else
+        # Lookup in packed-refs
+        pref_path = File.join(@path, 'packed-refs')
+        f = File.open(pref_path, 'rb')
+        begin
+          f.each do |line|
+            next if line.length == 0 or line[0] == '#' or line[0] == '^'
+            match = line.match /^([0-9a-fA-F]{40}) (.+)$/
+            next unless match[2].downcase == path.downcase
+            hash_str = match[1]
+            break
+          end
+        ensure
+          f.close
+        end
+      end
       retrieve_object(ShaHash.from_s(hash_str))
+    end
+
+    def get_branches
+      branches = {}
+      dir = File.join(@path, 'refs', 'heads')
+      Dir.foreach(dir) do |f|
+        branches[f] = ShaHash.from_s(File.binread(File.join(dir, f)).chomp)
+      end
+      # Packed refs
+      pref_path = File.join(@path, 'packed-refs')
+      f = File.open(pref_path, 'rb')
+      pos = nil
+      begin
+        f.each do |line|
+          next if line.length == 0 or line[0] == '#' or line[0] == '^'
+          match = line.match /^([0-9a-fA-F]{40}) (.+)$/
+          path = math[2].downcase
+          next unless path[0..10] == 'refs/heads/'
+          branches[path[11..-1]] = ShaHash.from_s(match[1])
+        end
+      ensure
+        f.close
+      end
+      branches
+    end
+
+    def get_tags
+      tags = {}
+      dir = File.join(@path, 'refs', 'tags')
+      Dir.foreach(dir) do |f|
+        tags[f] = ShaHash.from_s(File.binread(File.join(dir, f)).chomp)
+      end
+      # Packed refs
+      pref_path = File.join(@path, 'packed-refs')
+      f = File.open(pref_path, 'rb')
+      pos = nil
+      begin
+        f.each do |line|
+          next if line.length == 0 or line[0] == '#' or line[0] == '^'
+          match = line.match /^([0-9a-fA-F]{40}) (.+)$/
+          path = math[2].downcase
+          next unless path[0..9] == 'refs/tags/'
+          tags[path[10..-1]] = ShaHash.from_s(match[1])
+        end
+      ensure
+        f.close
+      end
+      tags
     end
 
     def set_ref(commit, path)
@@ -113,7 +176,7 @@ module TrueGrit
       Util.mkdir(File.join(path, 'refs', 'tags'))
 
       repo = Repo.new(path, working_path)
-      # Todo: more standard config options
+                                      # Todo: more standard config options
       repo.config['core.bare'] = bare
       repo
     end
