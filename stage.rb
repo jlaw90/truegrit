@@ -190,7 +190,8 @@ module TrueGrit
         puts name
         size = f.read(4).unpack('N')[0]
         extd = f.read(size)
-        raise 'Unhandled major extension in index: ' + name if name[0] >= ?A and name[0] <= ?Z
+        puts "Unhandled extension #{name}"
+        raise 'Unhandled major extension in index: ' + name if name[0] < ?A and name[0] > ?Z
       end
     ensure
       f.close unless f.nil?

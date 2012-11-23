@@ -9,6 +9,7 @@ module TrueGrit
   class Store
     def initialize(repo)
       @repo = repo
+      @cache = {}
 
       # Load pack files...
       @packs = []
@@ -27,7 +28,8 @@ module TrueGrit
 
     def retrieve_raw(sha)
       f = absolute_path(sha)
-      return Zlib::Inflate.inflate(File.binread(f)) if File.exists?(f)
+      return @cache[sha] if @cache.include?(sha)
+      return (@cache = Zlib::Inflate.inflate(File.binread(f))) if File.exists?(f)
       @packs.each do |p|
         if p.include?(sha)
           p.unpack(sha)
@@ -38,7 +40,7 @@ module TrueGrit
     end
 
     def include?(sha)
-      return true if File.exists?(absolute_path(sha))
+      return true if @cache.include?(sha) or File.exists?(absolute_path(sha))
       @packs.each { |p| return true if p.include?(sha) }
       false
     end

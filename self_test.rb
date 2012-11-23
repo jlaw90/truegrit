@@ -3,12 +3,12 @@ require_relative 'author'
 
 # I have a backup of my current git folder incase things fuck up
 # I'd suggest you do the same if you're playing with this library :P
-if File.exists?('.git.bak')
-  require 'fileutils'
-  FileUtils.rm_rf('.git')
-  Dir.mkdir('.git')
-  FileUtils.cp_r('.git.bak/.', '.git')
-end
+#if File.exists?('.git.bak')
+#  require 'fileutils'
+#  FileUtils.rm_rf('.git')
+#  Dir.mkdir('.git')
+#  FileUtils.cp_r('.git.bak/.', '.git')
+#end
 
 repo = TrueGrit::Repo.new('.')
 
