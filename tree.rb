@@ -13,8 +13,21 @@ module TrueGrit
     def checkout(path)
       Util.mkdir(path)
       self.each { |e|
-        data = e.content
         p = File.join(path, e.name)
+        if e.mode == '120000'
+          begin
+            File.symlink(e.content.data, p)
+            next
+          rescue e
+            puts e
+            # Just skip the next statement
+            puts 'Checking out a symlink on windows, creating as a textfile...'
+          end
+        elsif e.mode == '160000' # Gitlinks are created as directories and handled by .gitmodules
+          Dir.mkdir(p)
+          next
+        end
+        data = e.content
         if data.is_a?(Tree)
           data.checkout(p)
         elsif data.is_a?(Blob)
@@ -55,10 +68,22 @@ module TrueGrit
       path = '' if path.nil?
       self.each do |e|
         fpath = File.join(path, e.name)[1..-1]
-        res[fpath] = e unless e.mode == '40000'
-        res[fpath] = [e.content.map(path), e] if e.mode == '40000'
+        res[fpath] = (e.mode == '40000')? e.content.map(path): TreeMap.from_entry(e)
       end
       res
+    end
+  end
+
+  class TreeMap
+    attr_reader :name, :file
+
+    def initialize(name, file)
+      @name = name
+      @file = file
+    end
+
+    def self.from_entry(e)
+      TreeMap.new(e.name, e.content)
     end
   end
 
@@ -73,11 +98,11 @@ module TrueGrit
     end
 
     def content
-      @tree.repo.retrieve_object(@sha)
+      (@mode == '160000')? @sha: @tree.repo.retrieve_object(@sha)
     end
 
     def to_s
-      "#{@name}"
+      "#{mode} #{@name}"
     end
   end
 end

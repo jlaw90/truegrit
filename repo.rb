@@ -10,58 +10,49 @@ module TrueGrit
   class Repo
     attr_reader :path, :working_path, :store, :stage, :config
 
-    def initialize(repo_path, working_path=nil)
-      @path = File.absolute_path(repo_path)
-      @working_path = File.absolute_path(working_path)
+    def initialize(path)
+      if Dir.exists?(File.join(path, '.git'))
+        @working_path = File.absolute_path(path)
+        @path = File.join(@working_path, '.git')
+      else
+        @path = path
+      end
       @store = Store.new(self)
       @stage = Stage.new(self)
       @config = Config.new(self)
     end
 
-    def retrieve_object(hash)
-      @store.retrieve(hash, self)
+    def retrieve_object(sha)
+      @store.retrieve(sha, self)
     end
 
     def store_object(object)
       @store.store(object)
     end
 
-    def includes_object?(hash)
-      @store.include?(@path, hash)
+    def has_object?(sha)
+      @store.include?(sha)
     end
 
-    # Todo: name properly for refs, tags, etc.
-    def head(path=nil)
-      retrieve_object(head_hash(path))
+    def head
+      head_path = File.join(@path, 'HEAD')
+      return nil unless File.exists?(head_path)
+      link = File.binread(head_path).chomp[5..-1]
+      get_ref(link)
     end
 
-    def head_hash(path=nil)
-      # Todo: packed refs!
-      path = File.join(@path, path.nil? ? 'HEAD' : "refs/heads/#{path}")
-      return nil unless File.exists?(path)
-      data = File.binread(path).chomp
-
-      # Follow ref:
-      if data[0..4] == 'ref: '
-        refpath = File.join(@path, data[5..-1])
-        return nil unless File.exists?(refpath)
-        data = File.binread(refpath).chomp
-      end
-      ShaHash.from_s(data)
+    def get_ref(path)
+      return nil if path.nil?
+      raise "Invalid ref: #{path}" unless path[0..4] == 'refs/'
+      abs_path = File.join(@path, path)
+      return nil unless File.exists?(abs_path)
+      # Todo: packed refs
+      hash_str = File.binread(abs_path).chomp
+      retrieve_object(ShaHash.from_s(hash_str))
     end
 
-    def set_head(commit, path=nil)
-      path = File.join(@path, path.nil? ? 'HEAD' : "refs/heads/#{path}")
-      value = commit.is_a?(Commit) ? store_object(commit) : commit.to_s
-      data = File.binread(path).chomp
-
-      # Check ref
-      path = File.join(@path, data[5..-1]) if data[0..4] == 'ref: '
-
-      f = File.open(path, 'wb')
-      f.write("#{value}\n")
-      f.flush
-      f.close
+    def set_ref(commit, path)
+      File.binwrite(commit.is_a?(Commit) ? store_object(commit) : commit.to_s, "#{File.join(@path, path)}\n")
     end
 
     def clone(path, bare=false)
@@ -69,14 +60,18 @@ module TrueGrit
       Util.mkdir(clone_path)
       FileUtils.cp_r("#@path/.", clone_path)
 
-      unless bare
-        checkout(path)
-      end
+      checkout(path) unless bare
       nil
     end
 
     def checkout(path)
       head.checkout(path)
+    end
+
+
+    # Make us more like Grit (to ease transition)
+    def commits(commit=head)
+      commits_for(commit)
     end
 
     def commit(author, message, committer = author)
@@ -121,6 +116,15 @@ module TrueGrit
       # Todo: more standard config options
       repo.config['core.bare'] = bare
       repo
+    end
+
+    private
+    def commits_for(commit)
+      res = []
+      return res if commit.nil?
+      res << commit
+      commit.parents.each { |p| res += commits_for p }
+      res
     end
   end
 end

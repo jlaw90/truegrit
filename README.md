@@ -63,7 +63,7 @@ repo.commit(TrueGrit::Author.new('James Lawrence', 'test@lol.com'), 'An example 
 # to the new commit
 ```
 
-Preamble
+Ending comments
 --------
 I hope you can find some use of this library or at least find it interesting to examine.
 Issues and pull requests are encouraged!
