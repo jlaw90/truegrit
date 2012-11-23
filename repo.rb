@@ -50,19 +50,22 @@ module TrueGrit
       else
         # Lookup in packed-refs
         pref_path = File.join(@path, 'packed-refs')
-        f = File.open(pref_path, 'rb')
-        begin
-          f.each do |line|
-            next if line.length == 0 or line[0] == '#' or line[0] == '^'
-            match = line.match /^([0-9a-fA-F]{40}) (.+)$/
-            next unless match[2].downcase == path.downcase
-            hash_str = match[1]
-            break
+        if File.exists?(pref_path)
+          f = File.open(pref_path, 'rb')
+          begin
+            f.each do |line|
+              next if line.length == 0 or line[0] == '#' or line[0] == '^'
+              match = line.match /^([0-9a-fA-F]{40}) (.+)$/
+              next unless match[2].downcase == path.downcase
+              hash_str = match[1]
+              break
+            end
+          ensure
+            f.close
           end
-        ensure
-          f.close
         end
       end
+      return nil if hash_str.nil?
       retrieve_object(ShaHash.from_s(hash_str))
     end
 
@@ -75,6 +78,7 @@ module TrueGrit
       end
       # Packed refs
       pref_path = File.join(@path, 'packed-refs')
+      return branches unless File.exists?(pref_path)
       f = File.open(pref_path, 'rb')
       pos = nil
       begin
@@ -100,6 +104,7 @@ module TrueGrit
       end
       # Packed refs
       pref_path = File.join(@path, 'packed-refs')
+      return branches unless File.exists?(pref_path)
       f = File.open(pref_path, 'rb')
       pos = nil
       begin
