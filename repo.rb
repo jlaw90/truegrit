@@ -104,7 +104,7 @@ module TrueGrit
       end
       # Packed refs
       pref_path = File.join(@path, 'packed-refs')
-      return branches unless File.exists?(pref_path)
+      return tags unless File.exists?(pref_path)
       f = File.open(pref_path, 'rb')
       pos = nil
       begin
